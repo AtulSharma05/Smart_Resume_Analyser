@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const app = express();
@@ -5,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const GEMINI_API_KEY = 'Your_API_Key';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 app.post('/api/analyse', async (req, res) => {
   try {
