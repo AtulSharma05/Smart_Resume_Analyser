@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MODELS = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const MODELS = [ 'gemini-2.5-flash', 'gemini-2.5-flash-lite','gemma-4-31b-it', 'gemma-4-26b-a4b-it'];
 
 async function callGeminiAPI(prompt, modelIndex = 0) {
   if (modelIndex >= MODELS.length) {
