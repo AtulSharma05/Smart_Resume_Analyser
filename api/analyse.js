@@ -1,11 +1,9 @@
-const MODELS = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemma-4-31b-it', 'gemma-4-26b-a4b-it'];
+const REQUEST_TIMEOUT = 15000; // 15 seconds per request
 
-async function callGeminiAPI(prompt, apiKey, modelIndex = 0) {
-  if (modelIndex >= MODELS.length) {
-    throw new Error('All models failed. Please try again later.');
-  }
-
-  const model = MODELS[modelIndex];
+async function callSingleModel(prompt, apiKey, model) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
     const response = await fetch(
@@ -15,7 +13,8 @@ async function callGeminiAPI(prompt, apiKey, modelIndex = 0) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
-        })
+        }),
+        signal: controller.signal
       }
     );
 
@@ -23,13 +22,11 @@ async function callGeminiAPI(prompt, apiKey, modelIndex = 0) {
 
     // Check for quota errors or API errors
     if (data.error?.message?.includes('quota') || data.error?.message?.includes('Quota exceeded')) {
-      console.log(`Model ${model} quota exceeded, trying fallback...`);
-      return callGeminiAPI(prompt, apiKey, modelIndex + 1);
+      throw new Error(`Quota exceeded`);
     }
 
     if (data.error) {
-      console.error(`Model ${model} API error:`, data.error.message);
-      return callGeminiAPI(prompt, apiKey, modelIndex + 1);
+      throw new Error(data.error.message);
     }
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -37,15 +34,36 @@ async function callGeminiAPI(prompt, apiKey, modelIndex = 0) {
     // Validate that response looks like JSON
     const trimmed = text.replace(/```json|```/g, "").trim();
     if (!trimmed.startsWith('{')) {
-      console.log(`Model ${model} returned non-JSON response, trying fallback...`);
-      return callGeminiAPI(prompt, apiKey, modelIndex + 1);
+      throw new Error('Non-JSON response');
     }
     
     return { text, model };
   } catch (e) {
-    console.error(`Model ${model} failed:`, e.message);
-    return callGeminiAPI(prompt, apiKey, modelIndex + 1);
+    throw new Error(`${model}: ${e.message}`);
+  } finally {
+    clearTimeout(timeout);
   }
+}
+
+async function callGeminiAPI(prompt, apiKey) {
+  const errors = [];
+
+  // Try models in parallel batches (2 at a time) - whichever succeeds first wins
+  for (let i = 0; i < MODELS.length; i += 2) {
+    const batch = MODELS.slice(i, i + 2);
+    const promises = batch.map(model => callSingleModel(prompt, apiKey, model));
+    
+    try {
+      const result = await Promise.race(promises);
+      console.log(`✓ Success with model: ${result.model}`);
+      return result;
+    } catch (e) {
+      errors.push(e.message);
+      console.log(`Batch ${i / 2 + 1} failed, trying next batch...`);
+    }
+  }
+
+  throw new Error(`All models failed: ${errors.join('; ')}`);
 }
 
 export default async function handler(req, res) {
