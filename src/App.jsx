@@ -461,7 +461,8 @@ Provide 5-8 improvements. If no job role given, set job_match.score to null.`;
       setTimeout(() => advanceStep(4), 3200);
       setTimeout(() => advanceStep(5), 4000);
 
-      const res = await fetch("http://localhost:3001/api/analyse", {
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiUrl}/api/analyse`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
