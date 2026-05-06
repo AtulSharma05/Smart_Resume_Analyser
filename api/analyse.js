@@ -21,17 +21,26 @@ async function callGeminiAPI(prompt, apiKey, modelIndex = 0) {
 
     const data = await response.json();
 
-    // Check for quota errors
+    // Check for quota errors or API errors
     if (data.error?.message?.includes('quota') || data.error?.message?.includes('Quota exceeded')) {
       console.log(`Model ${model} quota exceeded, trying fallback...`);
       return callGeminiAPI(prompt, apiKey, modelIndex + 1);
     }
 
     if (data.error) {
-      throw new Error(data.error.message);
+      console.error(`Model ${model} API error:`, data.error.message);
+      return callGeminiAPI(prompt, apiKey, modelIndex + 1);
     }
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    
+    // Validate that response looks like JSON
+    const trimmed = text.replace(/```json|```/g, "").trim();
+    if (!trimmed.startsWith('{')) {
+      console.log(`Model ${model} returned non-JSON response, trying fallback...`);
+      return callGeminiAPI(prompt, apiKey, modelIndex + 1);
+    }
+    
     return { text, model };
   } catch (e) {
     console.error(`Model ${model} failed:`, e.message);
