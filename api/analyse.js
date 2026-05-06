@@ -1,5 +1,5 @@
 const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemma-4-31b-it', 'gemma-4-26b-a4b-it'];
-const REQUEST_TIMEOUT = 15000; // 15 seconds per request
+const REQUEST_TIMEOUT = 240000; // 15 seconds per request
 
 async function callSingleModel(prompt, apiKey, model) {
   const controller = new AbortController();
